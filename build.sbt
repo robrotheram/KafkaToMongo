@@ -10,8 +10,8 @@ libraryDependencies += "org.apache.spark" % "spark-streaming_2.11" % "1.6.2"
 // https://mvnrepository.com/artifact/org.apache.spark/spark-streaming-kafka_2.11
 libraryDependencies += "org.apache.spark" % "spark-streaming-kafka_2.11" % "1.6.2"
 // https://mvnrepository.com/artifact/com.rethinkdb/rethinkdb-driver
-libraryDependencies += "org.mongodb" % "casbah_2.11" % "3.1.1"
-
+//libraryDependencies += "org.mongodb" % "casbah_2.11" % "3.1.1"
+libraryDependencies += "org.mongodb.scala" % "mongo-scala-driver_2.11" % "1.1.1"
 
 
 assemblyMergeStrategy in assembly := {
