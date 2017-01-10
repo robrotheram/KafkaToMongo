@@ -1,7 +1,7 @@
 package io.rob;
 
 import org.mongodb.scala.{Completed, MongoClient, MongoCollection, MongoDatabase, Observer}
-import org.mongodb.scala.bson.{BsonArray, BsonDocument, BsonNumber, BsonObjectId}
+import org.mongodb.scala.bson.{BsonArray, BsonDocument, BsonNumber, BsonObjectId, BsonString}
 import java.util
 
 import kafka.serializer.StringDecoder
@@ -60,44 +60,49 @@ object DirectKafkaWordCount {
     val timestamp: Int = (System.currentTimeMillis / 1000).toInt
     jsondb.get("meta").asDocument().append("time", BsonNumber(timestamp))
     val metaString = jsondb.get("meta").asInstanceOf[BsonDocument].get("serverID").asString().getValue
+    if(jsondb.get("Evnt") != null) {
+      if (jsondb.get("Evnt").asString().equals(BsonString("SERVER_META"))) {
+        val Worlds: Array[BsonDocument] = jsondb.get("Worlds").asArray().toArray().map(_.asInstanceOf[BsonDocument])
+        Worlds.foreach(w => {
+          val chunks = toArray(w.get("loadedChunks"))
+          val worldname: String = w.get("worldName").asString().getValue
+          val chunkList = mutable.MutableList[BsonObjectId]()
+          val clist = BsonArray()
+          val worldDoc = w;
+          worldDoc.remove("loadedChunks");
+          println("WORLD:" + worldDoc.toJson())
+          chunks.foreach(c => {
+            println(c.toJson)
+            val col_name = metaString + "_chunks"
+            val id = BsonObjectId.apply()
+            c.append("_id", id)
+            println(id)
+            val doc = new BsonDocument;
+            doc.append("id", id)
+            doc.append("location", c.get("location").asInstanceOf[BsonDocument])
+            c.append("Time", BsonNumber(timestamp))
+            clist.add(doc)
+            if (c.get("map") != null) {
+              sendToMongo(col_name, c)
+            }
+          })
+          val list: Seq[BsonObjectId] = chunkList.toList
+          worldDoc.append("chunks", clist)
+          var col_name = metaString + "_worlds";
+          sendToMongo(col_name, worldDoc)
 
-    if (jsondb.get("ServerMeta") != null) {
-      val Worlds: Array[BsonDocument] = jsondb.get("Worlds").asArray().toArray().map(_.asInstanceOf[BsonDocument])
-      Worlds.foreach(w => {
-        val chunks = toArray(w.get("loadedChunks"))
-        val worldname: String = w.get("worldName").asString().getValue
-        val chunkList = mutable.MutableList[BsonObjectId]()
-        val clist = BsonArray()
-        val worldDoc = w;
-        worldDoc.remove("loadedChunks");
-        println("WORLD:" + worldDoc.toJson())
-        chunks.foreach(c => {
-          println(c.toJson)
-          val col_name = metaString + "_chunks"
-          val id = BsonObjectId.apply()
-          c.append("_id", id)
-          println(id)
-          val doc = new BsonDocument;
-          doc.append("id", id)
-          doc.append("location", c.get("location").asInstanceOf[BsonDocument])
-          c.append("time", BsonNumber(timestamp))
-          clist.add(doc)
-          sendToMongo(col_name, c)
+          val doc = jsondb.get("Data").asDocument();
+          doc.append("Time", BsonNumber(timestamp))
+          doc.append("Evnt", jsondb.get("Evnt"))
+
+          col_name = metaString + "_events";
+          sendToMongo(col_name, doc)
         })
-        val list: Seq[BsonObjectId] = chunkList.toList
-        worldDoc.append("chunks", clist)
-        var col_name = metaString + "_worlds";
-        sendToMongo(col_name, worldDoc)
+      } else {
+        val col_name = metaString + "_events";
 
-        val doc = jsondb.get("ServerMeta").asDocument();
-        doc.append("time", BsonNumber(timestamp))
-
-        col_name = metaString + "_events";
-        sendToMongo(col_name, doc)
-      })
-    }else{
-      val col_name = metaString + "_events";
-      sendToMongo(col_name, jsondb);
+        sendToMongo(col_name, jsondb);
+      }
     }
   }
 
